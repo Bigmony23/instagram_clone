@@ -94,7 +94,7 @@ PHONE_EXPIRE=2
 EMAIL_EXPIRE=5
 class UserConfirmation(BaseModel):
     TYPE_CHOICES = ((VIA_EMAIL, VIA_EMAIL), (VIA_PHONE, VIA_PHONE))
-    code=models.CharField(max_length=4,choices=TYPE_CHOICES)
+    code=models.CharField(max_length=9,choices=TYPE_CHOICES)
     verify_typy=models.CharField(max_length=31,choices=TYPE_CHOICES)
     user=models.ForeignKey('users.User',related_name='verify_codes',on_delete=models.CASCADE)
     expiration_date=models.DateField(null=True)

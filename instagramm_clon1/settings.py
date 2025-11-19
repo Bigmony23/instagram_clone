@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     #packages
     'rest_framework',
-    'rest_framework_simplejwt'
+    'rest_framework_simplejwt',
     #apps local
     "users",
     "shared"
