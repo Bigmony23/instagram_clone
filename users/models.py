@@ -10,6 +10,7 @@ from unicodedata import normalize
 
 from shared.models import BaseModel
 
+
 ORDINARY_USER,MANAGER,ADMIN=("ordinary_user","manager","admin")
 VIA_EMAIL,VIA_PHONE=("via_email","via_phone")
 NEW,CODE_VERIFIED,DONE,PHOTO_STEP=("new","code_verified","done","photo_step")
@@ -54,7 +55,7 @@ class User(AbstractUser,BaseModel):
             code=code,)
         return code
     def check_username(self):
-        if not self.username:
+        if not self.username or self.username.strip() == "":
             temp_username=f'instagram_{uuid.uuid4().__str__().split("-")[-1]}'
             while User.objects.filter(username=temp_username):
                 temp_username=f'{temp_username}{random.randint(0,9)}'
@@ -64,7 +65,7 @@ class User(AbstractUser,BaseModel):
             normalize_email=self.email.lower()
             self.email=normalize_email
 
-    def check_password(self):
+    def check_password_auth(self):
         if  not self.password:
             temp_password=f'password_{uuid.uuid4().__str__().split("-")[-1]}'
             self.password=temp_password
@@ -79,15 +80,24 @@ class User(AbstractUser,BaseModel):
             'refresh_token': str(refresh),
         }
     def clean(self):
-        self.check_email()
-        self.check_username()
-        self.check_password()
-        self.hashing_password()
+        if self.email:
+            self.email=self.email.lower()
+        if self.username and self.username.strip() == "":
+            self.username=self.username.strip()
+        return super().clean()
+
 
     def save(self, *args, **kwargs):
-        if not self.pk:
-            self.clean()
+        self.check_email()
+        if not self.username or self.username.strip() == "":
+            self.check_username()
+
+        self.check_password_auth()
+
+        self.hashing_password()
         super(User,self).save(*args, **kwargs)
+
+
 
 
 PHONE_EXPIRE=2
