@@ -1,12 +1,15 @@
 #email check pythonn
 
 import threading
+from distutils.command.config import config
 
 import phonenumbers
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 from rest_framework.exceptions import ValidationError
 import re
+from twilio.rest import Client
+
 email_regex=re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 phone_regex=re.compile(r'^\+?[1-9]\d{1,14}$')
 
@@ -54,3 +57,12 @@ def send_email(email,code):
         "content_type":"html"
     })
 
+def send_phone_code(phone_number,code):
+    account_sid=config['account_sid']
+    auth_token=config('account_token')
+    client = Client(account_sid, auth_token)
+    client.messages.create(
+        body=f'Hello its your verification code!{code}',
+        from_='+999',
+        to=f'{phone_number}'
+    )

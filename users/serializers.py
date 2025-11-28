@@ -102,7 +102,7 @@
 from rest_framework import serializers, exceptions
 from django.contrib.auth import get_user_model
 from shared.utility import check_email_phone, send_email
-from .models import VIA_EMAIL, VIA_PHONE, NEW
+from users.models import VIA_EMAIL, VIA_PHONE, NEW
 
 User = get_user_model()
 
@@ -154,6 +154,7 @@ class SignupSerializer(serializers.ModelSerializer):
             send_email(user.email, code)
         elif user.auth_type == VIA_PHONE:
             code = user.create_verify_code(VIA_PHONE)
+            send_email(user.phone, code) # for now
             # send_phone_code(user.phone, code)
         user.save()
         return user

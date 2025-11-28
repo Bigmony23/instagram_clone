@@ -7,7 +7,7 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from rest_framework_simplejwt.tokens import RefreshToken
 from unicodedata import normalize
-
+from django.utils import timezone
 from shared.models import BaseModel
 
 
@@ -51,7 +51,7 @@ class User(AbstractUser,BaseModel):
         code="".join([str(random.randint(0,100) %10) for _ in range(4)])
         UserConfirmation.objects.create(
             user_id=self.id,
-            verify_typy=verify_type,
+            verify_type=verify_type,
             code=code,)
         return code
     def check_username(self):
@@ -104,20 +104,19 @@ PHONE_EXPIRE=2
 EMAIL_EXPIRE=5
 class UserConfirmation(BaseModel):
     TYPE_CHOICES = ((VIA_EMAIL, VIA_EMAIL), (VIA_PHONE, VIA_PHONE))
-    code=models.CharField(max_length=9,choices=TYPE_CHOICES)
-    verify_typy=models.CharField(max_length=31,choices=TYPE_CHOICES)
+    code=models.CharField(max_length=9)
+    verify_type=models.CharField(max_length=31,choices=TYPE_CHOICES)
     user=models.ForeignKey('users.User',related_name='verify_codes',on_delete=models.CASCADE)
-    expiration_date=models.DateField(null=True)
+    expiration_time=models.DateTimeField(null=True)
     is_confirmed=models.BooleanField(default=False)
 
     def __str__(self):
         return str(self.user.__str__())
     def save(self, *args, **kwargs):
-        if not self.pk:
-            if self.verify_typy==VIA_EMAIL:
-                self.expiration_date=datetime.now()+timedelta(minutes=EMAIL_EXPIRE)
-            else:
-                self.expiration_date=datetime.now()+timedelta(minutes=PHONE_EXPIRE)
+        if self.verify_type==VIA_EMAIL:
+            self.expiration_time=timezone.now()+timedelta(minutes=EMAIL_EXPIRE)
+        else:
+            self.expiration_time=timezone.now()+timedelta(minutes=PHONE_EXPIRE)
         super(UserConfirmation,self).save(*args, **kwargs)
 
 
