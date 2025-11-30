@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 
 from shared.utility import send_email
 from .models import User, DONE, CODE_VERIFIED, NEW, VIA_EMAIL, VIA_PHONE
-from .serializers import SignupSerializer,ChangeUserInformation
+from .serializers import SignupSerializer,ChangeUserInformation,ChangeUserPhotoSerializer
 
 class CreateUserView(CreateAPIView):
     queryset = User.objects.all()
@@ -127,3 +127,16 @@ class ChangeUserInformationView(UpdateAPIView):
     #         'auth_status':self.request.user.auth_status,
     #     }
     #     return Response(data,status=status.HTTP_200_OK)
+
+class ChangeUserPhotoView(APIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class=ChangeUserPhotoSerializer
+    def put(self, request, *args, **kwargs):
+        serializer = ChangeUserPhotoSerializer(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            serializer.update(user,serializer.validated_data)
+            return Response({
+                             'message':'User photo has been updated.',},status=status.HTTP_200_OK)
+        return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+
