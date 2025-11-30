@@ -4,16 +4,16 @@ from enum import verify
 from django.shortcuts import render
 from pyexpat.errors import messages
 
-from rest_framework import permissions
+from rest_framework import permissions, status
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, UpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from shared.utility import send_email
 from .models import User, DONE, CODE_VERIFIED, NEW, VIA_EMAIL, VIA_PHONE
-from .serializers import SignupSerializer
+from .serializers import SignupSerializer,ChangeUserInformation
 
 class CreateUserView(CreateAPIView):
     queryset = User.objects.all()
@@ -54,7 +54,7 @@ class VerifyAPIView(APIView):
         return True
 
 class GetNewVerification(APIView):
-
+    permission_classes = (IsAuthenticated,)
     def get(self,request,*args,**kwargs):
         user=self.request.user
         self.check_verification(user)
@@ -89,3 +89,41 @@ class GetNewVerification(APIView):
             }
             raise ValidationError(data)
 
+class ChangeUserInformationView(UpdateAPIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class=ChangeUserInformation
+    http_method_names = ['patch','put']
+
+    def get_object(self):
+        return self.request.user
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response({'success':True,
+                         'message':'User has been updated.',
+                         'auth_status':instance.auth_status},status=status.HTTP_200_OK)
+    def patch(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+    def put(self, request, *args, **kwargs):
+        kwargs['partial'] = False
+        return self.update(request, *args, **kwargs)
+        # super(ChangeUserInformationView, self).update(request, *args, **kwargs)
+        # data={
+        #     'success':True,
+        #     'message':'User has been updated.',
+        #     'auth_status':self.request.user.auth_status,
+        # }
+        # return Response(data,status=status.HTTP_200_OK)
+    # def partial_update(self, request, *args, **kwargs):
+    #     super(ChangeUserInformationView, self).update(request, *args, **kwargs)
+    #     data={
+    #         'success':True,
+    #         'message':'User has been updated.',
+    #         'auth_status':self.request.user.auth_status,
+    #     }
+    #     return Response(data,status=status.HTTP_200_OK)

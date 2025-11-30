@@ -99,10 +99,13 @@
 #
 #
 # users/serializers.py
+from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers, exceptions
 from django.contrib.auth import get_user_model
+from rest_framework.exceptions import ValidationError
+
 from shared.utility import check_email_phone, send_email
-from users.models import VIA_EMAIL, VIA_PHONE, NEW
+from users.models import VIA_EMAIL, VIA_PHONE, NEW, CODE_VERIFIED, DONE
 
 User = get_user_model()
 
@@ -154,7 +157,8 @@ class SignupSerializer(serializers.ModelSerializer):
             send_email(user.email, code)
         elif user.auth_type == VIA_PHONE:
             code = user.create_verify_code(VIA_PHONE)
-            send_email(user.email, code) # for now
+            email = user.email or f'{user.phone}@example.com'
+            send_email(email, code) # for now
             # send_phone_code(user.phone, code)
         user.save()
         return user
@@ -163,4 +167,79 @@ class SignupSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data.update(instance.token())
         return data
+
+class ChangeUserInformation(serializers.Serializer):
+
+    first_name = serializers.CharField(write_only=True, required=False)
+    last_name = serializers.CharField(write_only=True, required=False)
+    username=serializers.CharField(write_only=True, required=False)
+    password = serializers.CharField(write_only=True, required=False)
+    confirm_password = serializers.CharField(write_only=True, required=False)
+
+    # class Meta:
+    #     model = User
+    #     fields = ['first_name', 'last_name', 'username', 'password', 'confirm_password']
+    #     extra_kwargs = {
+    #         'first_name': {'required': False},
+    #         'last_name': {'required': False},
+    #         'username': {'required': False},
+    #     }
+
+    def validate(self, data):
+        if not getattr(self,'partial', False):
+            required_fields = ['first_name', 'last_name', 'username', 'password', 'confirm_password']
+            missing=[f for f in required_fields if f not in self.initial_data]
+            if missing:
+                raise exceptions.ValidationError({field:'This field is required.' for field in missing})
+        password = data.get('password')
+        confirm_password = data.get('confirm_password')
+        if password != confirm_password:
+            raise exceptions.ValidationError({'message': 'Passwords do not match'})
+        if password:
+            validate_password(password)
+            validate_password(confirm_password)
+        return data
+    def validate_username(self, value):
+        if len(value) < 5 or len(value) > 30:
+            raise  ValidationError({'message': 'Username must be between 5 and 30 characters'})
+        if value.isdigit():
+            raise ValidationError({'message': 'Username must not contain only numbers'})
+        return value
+    def validate_first_name(self, value):
+        if len(value) < 5 or len(value) > 30:
+            raise ValidationError({'message': 'First name must be between 5 and 30 characters'})
+        if value.isdigit():
+            raise ValidationError({'message': 'First name must not contain only numbers'})
+        return value
+    def validate_last_name(self, value):
+        if len(value)<5 or len(value)>30:
+            raise ValidationError({'message': 'Last name must be between 5 and 30 characters'})
+        if value.isdigit():
+            raise ValidationError({'message': 'Last name must not contain only numbers'})
+        return value
+    def update(self, instance, validated_data):
+
+        # # Обновляем только то, что пришло
+        # for field, value in validated_data.items():
+        #     if field == 'password':
+        #         instance.set_password(value)
+        #     elif field != 'confirm_password':
+        #         setattr(instance, field, value)
+        # if validated_data.get('password'):
+        #     instance.set_password(validated_data.get('password'))
+        # if instance.auth_status == CODE_VERIFIED:
+        #     instance.auth_status=DONE
+        # instance.save()
+        # return instance
+        for attr in ('first_name', 'last_name', 'username'):
+            if attr in validated_data:
+                setattr(instance, attr, validated_data[attr])
+        if 'password' in validated_data:
+            instance.set_password(validated_data['password'])
+        if getattr(instance,'auth_status',None)=='code_verified':
+            instance.auth_status = DONE
+
+        instance.save()
+        return instance
+
 
