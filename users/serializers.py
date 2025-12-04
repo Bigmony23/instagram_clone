@@ -102,10 +102,11 @@
 from django.contrib.auth.password_validation import validate_password
 from django.core.validators import FileExtensionValidator
 from rest_framework import serializers, exceptions
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, authenticate
 from rest_framework.exceptions import ValidationError
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenObtainSerializer
 
-from shared.utility import check_email_phone, send_email
+from shared.utility import check_email_phone, send_email, check_user_type
 from users.models import VIA_EMAIL, VIA_PHONE, NEW, CODE_VERIFIED, DONE, PHOTO_DONE
 
 User = get_user_model()
@@ -253,5 +254,63 @@ class ChangeUserPhotoSerializer(serializers.Serializer):
             instance.auth_status = PHOTO_DONE
             instance.save()
         return instance
+
+
+class LoginSerializer(TokenObtainPairSerializer):
+    def __init__(self, *args, **kwargs):
+        super(LoginSerializer,self).__init__(*args, **kwargs)
+        self.fields['userinput']=serializers.CharField(required=True)
+        self.fields['username']=serializers.CharField(required=False, read_only=True)
+
+    def auth_validate(self,attrs):
+        user_input = attrs.get('userinput')#email or phone number or username
+        if check_user_type(user_input)=='username':
+            username=user_input
+        elif check_user_type(user_input)=='email':
+            user=self.get_user(email__iexact=user_input)
+            username=user.username
+        elif check_user_type(user_input)=='phone':
+            user=self.get_user(phone=user_input)
+            username=user.username
+        else:
+            data={
+                'success': True,
+                'message':'You should send email,username or phone to login'
+
+            }
+            raise ValidationError(data)
+        authentication_kwargs = {
+            self.username_field: username,
+            'password': attrs.get('password'),
+        }
+        current_user=User.objects.filter(username__iexact=username).first()
+
+        if current_user is not None and current_user.auth_status in [NEW,CODE_VERIFIED]:
+            raise ValidationError({'succes':False,
+                'message':'You are not fully registered uet'})
+        user=authenticate(**authentication_kwargs)
+        if user is not None:
+            self.user=user
+        else:
+            raise ValidationError({'success':False,'message':'Invalid credentials'})
+    def validate(self,attrs):
+        self.auth_validate(attrs)
+        if self.user.auth_status not in [DONE,PHOTO_DONE]:
+            raise PermissionError({'You can not login you don not have permissions'})
+        data=self.user.token()
+        data['auth_status']=self.user.auth_status
+        data['full_name']=self.user.full_name
+
+        return data
+
+    def get_user(self,**kwargs):
+        users=User.objects.filter(**kwargs)
+        if not users.exists():
+            raise ValidationError({'message':'User not found'})
+        else:
+            return users.first()
+
+
+
 
 

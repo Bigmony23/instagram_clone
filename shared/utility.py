@@ -12,20 +12,28 @@ from twilio.rest import Client
 
 email_regex=re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 phone_regex=re.compile(r'^\+?[1-9]\d{1,14}$')
+username=re.compile(r"^[a-zA-Z0-9._%+-]+$")
+def check_email_phone(user_input):
+    # 1. проверяем email
+    if re.fullmatch(email_regex, user_input):
+        return "email"
 
-def check_email_phone(email_or_phone):
-    phone_number=phonenumbers.parse(email_or_phone)
-    if re.fullmatch(email_regex,email_or_phone):
-        email_or_phone='email'
+    # 2. проверяем телефон (перед использованием parse)
+    if re.fullmatch(phone_regex, user_input):
+        try:
+            phone_number = phonenumbers.parse(user_input)
+            if phonenumbers.is_valid_number(phone_number):
+                return "phone"
+        except phonenumbers.NumberParseException:
+            pass
 
-    elif phonenumbers.is_valid_number(phone_number):
-        email_or_phone='phone'
-    else:
-        data={
-            'succes':False,
-            "message":"Email or phone number is invalid."
-        }
-    return email_or_phone
+    # 3. иначе ошибка
+    data = {
+        "success": False,
+        "message": "Email or phone number is invalid."
+    }
+    raise ValidationError(data)
+
 class EmailThread(threading.Thread):
     def __init__(self,email):
         self.email=email
@@ -66,3 +74,20 @@ def send_phone_code(phone_number,code):
         from_='+999',
         to=f'{phone_number}'
     )
+
+def check_user_type(user_input):
+    if re.fullmatch(email_regex,user_input):
+        user_input='email'
+    elif re.fullmatch(phone_regex,user_input):
+        user_input='phone'
+    elif re.fullmatch(username,user_input):
+        user_input='username'
+    else:
+        data = {
+            'succes': False,
+            "message": "Email or phone number or username is invalid."
+        }
+        raise ValidationError(data)
+    return user_input
+
+

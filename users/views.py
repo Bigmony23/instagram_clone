@@ -10,10 +10,12 @@ from rest_framework.generics import CreateAPIView, UpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from shared.utility import send_email
 from .models import User, DONE, CODE_VERIFIED, NEW, VIA_EMAIL, VIA_PHONE
-from .serializers import SignupSerializer,ChangeUserInformation,ChangeUserPhotoSerializer
+from .serializers import SignupSerializer, ChangeUserInformation, ChangeUserPhotoSerializer, LoginSerializer
+
 
 class CreateUserView(CreateAPIView):
     queryset = User.objects.all()
@@ -140,3 +142,5 @@ class ChangeUserPhotoView(APIView):
                              'message':'User photo has been updated.',},status=status.HTTP_200_OK)
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
+class LoginView(TokenObtainPairView):
+    serializer_class = LoginSerializer
