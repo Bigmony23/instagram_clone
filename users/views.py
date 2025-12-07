@@ -6,15 +6,18 @@ from pyexpat.errors import messages
 
 from rest_framework import permissions, status
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import CreateAPIView, UpdateAPIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.generics import CreateAPIView, UpdateAPIView, GenericAPIView
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from shared.utility import send_email
+from shared.utility import send_email, check_email_phone
 from .models import User, DONE, CODE_VERIFIED, NEW, VIA_EMAIL, VIA_PHONE
-from .serializers import SignupSerializer, ChangeUserInformation, ChangeUserPhotoSerializer, LoginSerializer
+from .serializers import SignupSerializer, ChangeUserInformation, ChangeUserPhotoSerializer, LoginSerializer, \
+    LoginRefreshSerializer, LogoutSerializer, ForgotPasswordSerializer
 
 
 class CreateUserView(CreateAPIView):
@@ -144,3 +147,48 @@ class ChangeUserPhotoView(APIView):
 
 class LoginView(TokenObtainPairView):
     serializer_class = LoginSerializer
+
+class LoginRefreshToken(TokenRefreshView):
+    serializer_class = LoginRefreshSerializer
+
+class LogoutView(GenericAPIView):
+    serializer_class = LogoutSerializer
+    permission_classes=[IsAuthenticated]
+
+    def post(self,request,*args,**kwargs):
+        serializer_data=self.serializer_class(data=request.data)
+        serializer_data.is_valid(raise_exception=True)
+        try:
+            refresh_token=self.request.data['refresh']
+            token=RefreshToken(refresh_token)
+            token.blacklist()
+            data={'success':True,
+                  'message':'Congratulations,You logged out successfully.',}
+            return Response(data,status=205)
+        except TokenError:
+            return Response(status=409)
+class ForgotPasswordView(APIView):
+    permission_classes = (AllowAny,)
+    serializer_class = ForgotPasswordSerializer
+
+    def post(self,request,*args,**kwargs):
+        serializer_data=self.serializer_class(data=request.data)
+        serializer_data.is_valid(raise_exception=True)
+        email_or_phone=serializer_data.validated_data.get('email_or_phone')
+        user=serializer_data.validated_data.get('user')
+        if check_email_phone(email_or_phone)=='phone':
+            code=user.create_verify_code(VIA_PHONE)
+            send_email(email_or_phone,code)
+        elif check_email_phone(email_or_phone)=='email':
+            code=user.create_verify_code(VIA_EMAIL)
+            send_email(email_or_phone,code)
+        return Response({
+            'success':True,
+            'message':'Verification code has been sent.',
+            'access':user.token()['access_token'],
+            'refresh':user.token()['refresh_token'],
+            'user_status':user.auth_status,
+        } ,status=200)
+
+
+

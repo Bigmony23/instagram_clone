@@ -99,12 +99,17 @@
 #
 #
 # users/serializers.py
+from django.contrib.auth.models import update_last_login
 from django.contrib.auth.password_validation import validate_password
 from django.core.validators import FileExtensionValidator
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers, exceptions
 from django.contrib.auth import get_user_model, authenticate
-from rest_framework.exceptions import ValidationError
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenObtainSerializer
+from rest_framework.exceptions import ValidationError, PermissionDenied, NotFound
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenObtainSerializer, \
+    TokenRefreshSerializer
+from rest_framework_simplejwt.tokens import AccessToken
 
 from shared.utility import check_email_phone, send_email, check_user_type
 from users.models import VIA_EMAIL, VIA_PHONE, NEW, CODE_VERIFIED, DONE, PHOTO_DONE
@@ -296,7 +301,7 @@ class LoginSerializer(TokenObtainPairSerializer):
     def validate(self,attrs):
         self.auth_validate(attrs)
         if self.user.auth_status not in [DONE,PHOTO_DONE]:
-            raise PermissionError({'You can not login you don not have permissions'})
+            raise PermissionDenied({'You can not login you don not have permissions'})
         data=self.user.token()
         data['auth_status']=self.user.auth_status
         data['full_name']=self.user.full_name
@@ -309,6 +314,36 @@ class LoginSerializer(TokenObtainPairSerializer):
             raise ValidationError({'message':'User not found'})
         else:
             return users.first()
+
+class LoginRefreshSerializer(TokenRefreshSerializer):
+
+    def validate(self, attrs):
+        data=super().validate(attrs)
+        access_token_instance=AccessToken(data['access'])
+        user_id=access_token_instance['user_id']
+        user=get_object_or_404(User,id=user_id)
+        update_last_login(None,user)
+        return data
+
+class LogoutSerializer(serializers.Serializer):
+    refresh=serializers.CharField()
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email_or_phone=serializers.CharField(write_only=True,required=True)
+
+    def validate(self,attrs):
+        email_or_phone=attrs.get('email_or_phone',None)
+        if email_or_phone is None:
+            raise ValidationError({'success':False,'message':'Please enter valid phone number'})
+        user=User.objects.filter(Q(phone=email_or_phone) | Q(email=email_or_phone))
+        if not user.exists():
+            raise NotFound({'detail':'User not found'})
+        attrs['user']=user.first()
+        return attrs
+
+
+
+
 
 
 
