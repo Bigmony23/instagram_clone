@@ -5,7 +5,7 @@ from django.shortcuts import render
 from pyexpat.errors import messages
 
 from rest_framework import permissions, status
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, NotFound
 from rest_framework.generics import CreateAPIView, UpdateAPIView, GenericAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -17,7 +17,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from shared.utility import send_email, check_email_phone
 from .models import User, DONE, CODE_VERIFIED, NEW, VIA_EMAIL, VIA_PHONE
 from .serializers import SignupSerializer, ChangeUserInformation, ChangeUserPhotoSerializer, LoginSerializer, \
-    LoginRefreshSerializer, LogoutSerializer, ForgotPasswordSerializer
+    LoginRefreshSerializer, LogoutSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
 
 
 class CreateUserView(CreateAPIView):
@@ -191,4 +191,23 @@ class ForgotPasswordView(APIView):
         } ,status=200)
 
 
+class ResetPasswordView(UpdateAPIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class=ResetPasswordSerializer
+    http_method_names = ['patch','put']
+
+    def get_object(self):
+        return self.request.user
+    def update(self, request, *args, **kwargs):
+        response=super(ResetPasswordView,self).update(request,*args,**kwargs)
+        try:
+            user=User.objects.get(id=response.data.get('id'))
+        except User.DoesNotExist as e:
+            raise NotFound(detail='User not found')
+        return Response({
+            'success':True,
+            'message':'Your password has been updated.',
+            'access':user.token()['access_token'],
+            'refresh':user.token()['refresh_token'],
+        })
 
