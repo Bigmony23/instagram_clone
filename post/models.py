@@ -1,0 +1,55 @@
+# from django.contrib.auth import get_user_model
+from django.core.validators import FileExtensionValidator, MaxLengthValidator
+from django.db import models
+
+from shared.models import BaseModel
+from users.models import User
+
+# User=get_user_model()
+
+class Post(BaseModel):
+    author = models.ForeignKey(User, on_delete=models.CASCADE,related_name='posts')
+    photo = models.ImageField(upload_to='posts_images/%Y/%m/%d',validators=[FileExtensionValidator(allowed_extensions=['jpg','png','jpeg'])])
+    caption = models.TextField(validators=[MaxLengthValidator(2000)])
+
+    class Meta:
+        db_table = 'posts'
+        verbose_name = 'post'
+        verbose_name_plural = 'posts'
+
+
+        #post_post
+
+class PostComment(BaseModel):
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE,related_name='comments')
+    comment = models.TextField()
+    parent = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        related_name='child',
+        on_delete=models.CASCADE)
+# Create your models here.
+
+class PostLike(BaseModel):
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE,related_name='likes')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['author','post']
+            )
+        ]
+
+class CommentLike(BaseModel):
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    comment = models.ForeignKey(PostComment, on_delete=models.CASCADE,related_name='likes')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['author','comment']
+            )
+        ]

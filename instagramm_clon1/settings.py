@@ -44,10 +44,12 @@ INSTALLED_APPS = [
     'phonenumbers',
     'rest_framework.authtoken',
     'rest_framework_simplejwt.token_blacklist',
+    'twilio',
     #apps local
     "users",
     "shared",
-    'twilio'
+    'post',
+
 ]
 
 MIDDLEWARE = [
