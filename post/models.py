@@ -12,12 +12,15 @@ class Post(BaseModel):
     photo = models.ImageField(upload_to='posts_images/%Y/%m/%d',validators=[FileExtensionValidator(allowed_extensions=['jpg','png','jpeg'])])
     caption = models.TextField(validators=[MaxLengthValidator(2000)])
 
+
+
     class Meta:
         db_table = 'posts'
         verbose_name = 'post'
         verbose_name_plural = 'posts'
 
-
+    def __str__(self):
+        return f" {self.author} post about {self.caption}"
         #post_post
 
 class PostComment(BaseModel):
@@ -30,6 +33,8 @@ class PostComment(BaseModel):
         blank=True,
         related_name='child',
         on_delete=models.CASCADE)
+    def __str__(self):
+        return f" comment by {self.author} post about {self.comment}"
 # Create your models here.
 
 class PostLike(BaseModel):
@@ -39,7 +44,8 @@ class PostLike(BaseModel):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['author','post']
+                fields=['author','post'],
+                name='PostLikeUnique'
             )
         ]
 
@@ -50,6 +56,7 @@ class CommentLike(BaseModel):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['author','comment']
+                fields=['author','comment'],
+                name='CommentLikeUnique'
             )
         ]
