@@ -18,7 +18,7 @@ class PostSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Post
-        fields= ('id','author','photo','caption','created_at','post_likes','post_comments_count','post_likes_count','me_liked')
+        fields= ('id','author','photo','caption','created_at','post_comments_count','post_likes_count','me_liked')
     @staticmethod
     def get_post_likes_count(obj):
         return obj.likes.count()
@@ -29,7 +29,7 @@ class PostSerializer(serializers.ModelSerializer):
         request = self.context.get('request',None)
         if request and request.user.is_authenticated:
             try:
-                like=PostLike.objects.get(post=obj,user=request.user)
+                like=PostLike.objects.get(post=obj,author=request.user)
                 return True
             except PostLike.DoesNotExist:
                 return False
