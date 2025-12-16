@@ -19,6 +19,9 @@ class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields= ('id','author','photo','caption','created_at','post_comments_count','post_likes_count','me_liked')
+        extra_kwargs = {'photo':{'required':False}}
+
+
     @staticmethod
     def get_post_likes_count(obj):
         return obj.likes.count()
@@ -59,9 +62,9 @@ class CommentSerializer(serializers.ModelSerializer):
         else:
             return None
     def get_me_liked(self,obj):
-        user = self.context.get('request',None)
-        if user.is_authenticated:
-            return obj.likes.filter(author=user).exists()
+        request = self.context.get('request',None)
+        if request and request.user.is_authenticated:
+            return obj.likes.filter(author=request.user).exists()
 
         else:
             return False
@@ -85,4 +88,3 @@ class PostLikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = PostLike
         fields = ('id','author','post')
-
