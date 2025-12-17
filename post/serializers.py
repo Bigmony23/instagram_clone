@@ -1,6 +1,9 @@
 from rest_framework import serializers
 
+
 from post.models import Post, PostLike, PostComment, CommentLike
+
+
 from users.models import User
 
 
@@ -50,6 +53,7 @@ class CommentSerializer(serializers.ModelSerializer):
                 'author',
                 'parent',
                 'comment',
+                'post',
                 'created_at',
                 'replies',
                 'me_liked',
