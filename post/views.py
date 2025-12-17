@@ -4,7 +4,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 
 from .models import Post, PostLike, CommentLike, PostComment
-from .serializers import PostSerializer, CommentLikeSerializer, CommentSerializer
+from .serializers import PostSerializer, CommentLikeSerializer, CommentSerializer, PostLikeSerializer
 from shared.custom_pagination import CustomPageNumberPagination
 
 class PostListAPIView(generics.ListAPIView):
@@ -81,4 +81,19 @@ class CommentListCreateAPIView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
+class PostLikeListCreateAPIView(generics.ListCreateAPIView):
+    queryset = PostLike.objects.all()
+    serializer_class = PostLikeSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+
+
+class CommentLikeListCreateAPIView(generics.ListCreateAPIView):
+    queryset = PostLike.objects.all()
+    serializer_class = PostLikeSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
