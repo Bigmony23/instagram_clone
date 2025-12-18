@@ -85,6 +85,8 @@ class CommentLikeSerializer(serializers.ModelSerializer):
         fields = ('id','author','comment')
 
 
+
+
 class PostLikeSerializer(serializers.ModelSerializer):
     id=serializers.UUIDField(read_only=True)
     author=UserSerializer(read_only=True)

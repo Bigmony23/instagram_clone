@@ -2,6 +2,7 @@ from django.shortcuts import render
 
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import Post, PostLike, CommentLike, PostComment
 from .serializers import PostSerializer, CommentLikeSerializer, CommentSerializer, PostLikeSerializer
@@ -80,6 +81,11 @@ class CommentListCreateAPIView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+class CommentRetrieveApiView(generics.RetrieveAPIView):
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.AllowAny]
+    queryset = PostComment.objects.all()
+
 
 class PostLikeListCreateAPIView(generics.ListCreateAPIView):
     queryset = PostLike.objects.all()
@@ -92,8 +98,117 @@ class PostLikeListCreateAPIView(generics.ListCreateAPIView):
 
 class CommentLikeListCreateAPIView(generics.ListCreateAPIView):
     queryset = PostLike.objects.all()
-    serializer_class = PostLikeSerializer
+    serializer_class = CommentLikeSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+class PostLikeListAPIView(generics.ListAPIView):
+    serializer_class = PostLikeSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        post_id =self.kwargs['pk']
+        return PostLike.objects.filter(post_id=post_id)
+
+
+class CommentLikeView(generics.ListAPIView):
+    serializer_class = CommentLikeSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        comment_id =self.kwargs['pk']
+        return CommentLike.objects.filter(comment_id=comment_id)
+
+class PostLikeApiView(APIView):
+
+    def post(self, request,pk):
+        try:
+            post_like = PostLike.objects.create(
+                author=self.request.user,
+                post_id=pk
+            )
+            serializer = PostLikeSerializer(post_like)
+            data={
+                'success': True,
+                'message':'Post successfully liked',
+                'data': serializer.data
+            }
+            return Response(
+                data,status=status.HTTP_201_CREATED
+
+            )
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message':f"{str(e)}",
+                'data': None
+            },status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        try:
+            post_like = PostLike.objects.get(
+                author=request.user,
+                post_id=pk
+            )
+            post_like.delete()
+
+            return Response(
+                {
+                    'success': True,
+                    'message': 'Like has been deleted',
+                    'data': None
+                },
+                status=status.HTTP_204_NO_CONTENT
+            )
+
+        except PostLike.DoesNotExist:
+            return Response(
+                {
+                    'success': False,
+                    'message': 'Like does not exist',
+                    'data': None
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+class CommentLikeCreateView(APIView):
+
+    def post(self,request,pk):
+        try:
+            comment_like = CommentLike.objects.create(
+                author=self.request.user,
+                comment_id=pk
+            )
+            serializer = CommentLikeSerializer(comment_like)
+            data={
+                'success': True,
+                'message':'Comment has been liked',
+                'data': serializer.data
+            }
+            return Response(data,status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message':f"{str(e)}",
+                'data': None
+            })
+    def delete(self,request,pk):
+        try:
+            comment_like = CommentLike.objects.get(
+                author=request.user,
+                comment_id=pk
+            )
+            comment_like.delete()
+            return Response({
+                'success': True,
+                'message': 'Comment has been deleted',
+            },status=status.HTTP_204_NO_CONTENT
+            )
+        except CommentLike.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Comment does not exist',
+                'data': None
+            },status=status.HTTP_400_BAD_REQUEST)
+
